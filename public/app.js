@@ -48,7 +48,7 @@ async function checkSession() {
     avatar.textContent = username.slice(0,1).toUpperCase();
   }
   try {
-    const res = await fetch('/me');
+    const res = await fetch('/me', { credentials: 'include' });
     if (!res.ok) return;
     const data = await res.json();
     username = data.username;
@@ -81,6 +81,7 @@ loginForm.addEventListener('submit', async (e) => {
   try {
     const res = await fetch('/login', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
@@ -108,7 +109,7 @@ loginForm.addEventListener('submit', async (e) => {
 
 logoutBtn.addEventListener('click', async () => {
   try {
-    await fetch('/logout', { method: 'POST' });
+    await fetch('/logout', { method: 'POST', credentials: 'include' });
   } finally {
     disconnectStream();
     username = null;
@@ -134,6 +135,7 @@ messageForm.addEventListener('submit', async (e) => {
   try {
     const res = await fetch('/message', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
@@ -211,7 +213,7 @@ function disconnectStream() {
 async function loadContacts() {
   typingUsers.clear();
   try {
-    const res = await fetch('/users');
+    const res = await fetch('/users', { credentials: 'include' });
     const data = await res.json();
     if (res.ok && Array.isArray(data.users)) {
       contacts = data.users.filter(u => u && u !== username);
@@ -321,6 +323,7 @@ function notifyTyping(state) {
   if (!username) return;
   fetch('/typing', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ typing: state }),
   }).catch(() => {});
