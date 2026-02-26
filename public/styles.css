@@ -1,6 +1,38 @@
 :root {
   color-scheme: light dark;
 }
+
+body.light {
+  background: #f4f4f4;
+  color: #111;
+}
+body.light #auth,
+body.light #chat {
+  background: #fff;
+  color: #111;
+  border-color: #ccc;
+}
+body.light input,
+body.light .search,
+body.light #messageInput {
+  background: #eee;
+  color: #111;
+  border-color: #bbb;
+}
+body.light .sidebar,
+body.light .thread,
+body.light .composer {
+  background: #fafafa;
+  border-color: #ccc;
+}
+body.light .bubble {
+  background: #e0e0e0;
+  color: #111;
+}
+body.light .me .bubble {
+  background: #3a86ff;
+  color: #fff;
+}
 body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   margin: 0;
@@ -11,7 +43,9 @@ body {
   color: #eee;
 }
 #auth, #chat {
-  width: min(1000px, 95vw);
+  /* fill the screen on small devices but cap at a reasonable max */
+  width: 100%;
+  max-width: 1000px;
   border: 1px solid #333;
   border-radius: 12px;
   padding: 16px;
@@ -56,6 +90,15 @@ button:hover { filter: brightness(1.1); }
   border: 1px solid #333;
   border-radius: 12px;
   background: #161616;
+  position: relative;
+}
+.search {
+  position: sticky;
+  top: 60px; /* sit below profile row */
+  z-index: 1;
+  background: #161616; /* match sidebar so it doesn't show through */
+  padding: 8px 10px;
+  border-radius: 8px;
 }
 .profile {
   display: flex;
@@ -72,13 +115,44 @@ button:hover { filter: brightness(1.1); }
   color: white;
   font-weight: 700;
 }
+
+.avatar.small {
+  width: 24px;
+  height: 24px;
+  font-size: 0.8rem;
+  margin-right: 8px;
+}
+.theme-btn {
+  background: none;
+  border: none;
+  color: #eee;
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-left: 8px;
+}
 .search {
   padding: 10px;
   border-radius: 8px;
   border: 1px solid #333;
   background: #222;
   color: #eee;
+  width: 100%;
 }
+
+.scroll-btn {
+  position: absolute;
+  right: 20px;
+  bottom: 72px; /* just above composer */
+  background: #3a86ff;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity 0.2s;
+}
+.scroll-btn:hover { opacity: 1; }
 .conversations {
   list-style: none;
   padding: 0;
@@ -92,9 +166,33 @@ button:hover { filter: brightness(1.1); }
   align-items: center;
   gap: 12px;
   cursor: pointer;
+  transition: background 0.2s;
+}
+.conversations li:hover {
+  background: #1f1f1f;
+}
+
+.badge {
+  background: #ff6b6b;
+  color: white;
+  border-radius: 8px;
+  padding: 2px 6px;
+  font-size: 0.75em;
+  margin-left: auto;
 }
 .conversations li.active {
   background: #222;
+}
+
+.conversations li.online::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3a86ff;
+  margin-right: 6px;
+  vertical-align: middle;
 }
 .logout {
   justify-self: start;
@@ -112,6 +210,7 @@ button:hover { filter: brightness(1.1); }
   justify-content: space-between;
   padding: 12px;
   border-bottom: 1px solid #333;
+  font-weight: 600;
 }
 .messages {
   list-style: none;
@@ -131,11 +230,15 @@ button:hover { filter: brightness(1.1); }
 }
 .bubble {
   max-width: 70%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 16px;
   display: grid;
   gap: 6px;
   background: #222;
+  transition: transform 0.15s ease;
+}
+.bubble.new {
+  transform: scale(1.02);
 }
 .me .bubble {
   background: #3a86ff;
@@ -155,6 +258,9 @@ button:hover { filter: brightness(1.1); }
   gap: 8px;
   padding: 12px;
   border-top: 1px solid #333;
+  position: sticky;
+  bottom: 0;
+  background: #161616;
 }
 #messageInput {
   padding: 10px;
@@ -174,9 +280,12 @@ button:hover { filter: brightness(1.1); }
   cursor: pointer;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+  .sidebar {
+    transition: left 0.3s ease;
   }
 
   .menu-btn {
@@ -201,5 +310,81 @@ button:hover { filter: brightness(1.1); }
 
   .bubble {
     max-width: 90%;
+  }
+}
+
+/* extra compression for small phones */
+@media (max-width: 600px) {
+  #auth, #chat {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 8px;
+  }
+
+  .layout {
+    gap: 0;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    width: 70%;
+    max-width: none;
+    padding: 8px;
+  }
+
+  .profile {
+    gap: 8px;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .thread {
+    border: none;
+    border-radius: 0;
+    background: #161616;
+  }
+
+  .thread-header {
+    padding: 8px;
+    font-size: 0.95rem;
+  }
+
+  .messages {
+    padding: 8px;
+    margin-bottom: 4px;
+  }
+
+  .composer {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .composer input, .composer button {
+    font-size: 0.9rem;
+    padding: 8px;
+  }
+
+  .bubble {
+    padding: 8px 10px;
+    font-size: 0.95rem;
+  }
+
+  .search {
+    top: 56px;
+    padding: 6px 8px;
+  }
+
+  .scroll-btn {
+    bottom: 60px;
+    right: 12px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
   }
 }

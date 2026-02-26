@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+// the app will read PORT from environment; fall back to 4444 for local testing
+const PORT = process.env.PORT ? Number(process.env.PORT) : 4444;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const users = new Map();
@@ -12,6 +13,9 @@ users.set('user1', hash('12345'));
 
 const sessions = new Map();
 const subscribers = new Set();
+// track which users currently have an active connection
+const onlineUsers = new Set();
+// hold chat history; will be loaded from disk if available
 const messages = [];
 
 function hash(s) {
@@ -105,6 +109,26 @@ function broadcast(event, data) {
   }
 }
 
+const DATA_FILE = path.join(__dirname, 'messages.json');
+
+// load previously saved messages (if any)
+try {
+  const disk = fs.readFileSync(DATA_FILE, 'utf8');
+  const parsed = JSON.parse(disk);
+  if (Array.isArray(parsed)) {
+    messages.push(...parsed);
+  }
+} catch (e) {
+  // ignore missing or invalid file
+}
+
+function saveMessages() {
+  // use async write so the main thread isn't blocked on disk
+  fs.writeFile(DATA_FILE, JSON.stringify(messages, null, 2), (err) => {
+    if (err) console.error('failed to write messages file', err);
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   const base = `http://${req.headers.host || 'localhost'}`;
   const { pathname } = new URL(req.url, base);
@@ -144,8 +168,12 @@ const server = http.createServer(async (req, res) => {
       }
       const sid = crypto.randomUUID();
       sessions.set(sid, { username, createdAt: Date.now() });
+      // mark as online immediately
+      onlineUsers.add(username);
+      broadcast('presence', { user: username, online: true });
+      // make cookie persistent for a day so it survives browser restarts
       sendJSON(res, 200, { ok: true, username }, {
-        'Set-Cookie': `sid=${encodeURIComponent(sid)}; HttpOnly; SameSite=Lax; Path=/`,
+        'Set-Cookie': `sid=${encodeURIComponent(sid)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400`,
       });
     } catch (e) {
       sendJSON(res, 400, { error: 'Invalid request' });
@@ -156,7 +184,14 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && pathname === '/logout') {
     const cookies = parseCookies(req);
     const sid = cookies.sid;
-    if (sid) sessions.delete(sid);
+    if (sid) {
+      const sess = sessions.get(sid);
+      if (sess && sess.username) {
+        onlineUsers.delete(sess.username);
+        broadcast('presence', { user: sess.username, online: false });
+      }
+      sessions.delete(sid);
+    }
     sendJSON(res, 200, { ok: true }, {
       'Set-Cookie': `sid=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
     });
@@ -174,6 +209,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/stream') {
     const session = requireSession(req, res);
     if (!session) return;
+    // mark connection open
+    onlineUsers.add(session.username);
+    broadcast('presence', { user: session.username, online: true });
+
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -184,7 +223,23 @@ const server = http.createServer(async (req, res) => {
     res.write(`event: history\ndata: ${JSON.stringify(messages)}\n\n`);
     req.on('close', () => {
       subscribers.delete(res);
+      onlineUsers.delete(session.username);
+      broadcast('presence', { user: session.username, online: false });
     });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/typing') {
+    const session = requireSession(req, res);
+    if (!session) return;
+    try {
+      const body = await readBody(req);
+      const { typing } = body;
+      broadcast('typing', { user: session.username, typing: !!typing });
+      sendJSON(res, 200, { ok: true });
+    } catch (e) {
+      sendJSON(res, 400, { error: 'Invalid request' });
+    }
     return;
   }
 
@@ -192,7 +247,7 @@ const server = http.createServer(async (req, res) => {
     const session = requireSession(req, res);
     if (!session) return;
     const list = Array.from(users.keys());
-    sendJSON(res, 200, { users: list });
+    sendJSON(res, 200, { users: list, online: Array.from(onlineUsers) });
     return;
   }
 
@@ -208,6 +263,8 @@ const server = http.createServer(async (req, res) => {
       }
       const msg = { user: session.username, text, ts: Date.now() };
       messages.push(msg);
+      // persist right away so history survives restarts/logouts
+      saveMessages();
       broadcast('message', msg);
       sendJSON(res, 200, { ok: true });
     } catch (e) {

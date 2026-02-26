@@ -29,6 +29,7 @@
         <div class="profile">
           <div id="avatar" class="avatar"></div>
           <div id="welcome" class="welcome"></div>
+          <button id="themeBtn" class="theme-btn" aria-label="Toggle theme">🌙</button>
         </div>
         <input id="search" class="search" type="text" placeholder="Search" />
         <ul id="conversations" class="conversations"></ul>
@@ -40,6 +41,8 @@
           <div id="conversationTitle" class="conversation-title">All Messages</div>
         </div>
         <ul id="messages" class="messages"></ul>
+        <button id="scrollBtn" class="scroll-btn" hidden>▼ New messages</button>
+        <div id="typingIndicator" class="typing-indicator" hidden></div>
         <form id="messageForm" class="composer">
           <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off" />
           <button type="submit">Send</button>
