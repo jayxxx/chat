@@ -4,8 +4,9 @@ const users = new Map();
 users.set('user2', hash('112233'));
 users.set('user1', hash('12345'));
 
-const sessions = new Map();
+// sessions map removed; auth done via cookie username
 const subscribers = new Set();
+const onlineUsers = new Set();
 const messages = [];
 
 function hash(s) {
@@ -34,12 +35,12 @@ function parseCookies(req) {
 
 function requireSession(req, res) {
   const cookies = parseCookies(req);
-  const sid = cookies.sid;
-  if (!sid || !sessions.has(sid)) {
+  const user = cookies.username;
+  if (!user || !users.has(user)) {
     sendJSON(res, 401, { error: 'Unauthorized' }, corsHeaders(req));
     return null;
   }
-  return sessions.get(sid);
+  return { username: user };
 }
 
 function readBody(req) {
@@ -107,11 +108,12 @@ module.exports = async (req, res) => {
         sendJSON(res, 401, { error: 'Invalid credentials' }, corsHeaders(req));
         return;
       }
-      const sid = crypto.randomUUID();
-      sessions.set(sid, { username, createdAt: Date.now() });
+      // no session map – use cookie to remember username
+      onlineUsers.add(username);
+      broadcast('presence', { user: username, online: true });
       sendJSON(res, 200, { ok: true, username }, {
         ...corsHeaders(req),
-        'Set-Cookie': `sid=${encodeURIComponent(sid)}; HttpOnly; SameSite=Lax; Path=/`,
+        'Set-Cookie': `username=${encodeURIComponent(username)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400`,
       });
     } catch (e) {
       sendJSON(res, 400, { error: 'Invalid request' }, corsHeaders(req));
@@ -121,11 +123,14 @@ module.exports = async (req, res) => {
 
   if (req.method === 'POST' && pathname === '/logout') {
     const cookies = parseCookies(req);
-    const sid = cookies.sid;
-    if (sid) sessions.delete(sid);
+    const user = cookies.username;
+    if (user) {
+      onlineUsers.delete(user);
+      broadcast('presence', { user, online: false });
+    }
     sendJSON(res, 200, { ok: true }, {
       ...corsHeaders(req),
-      'Set-Cookie': `sid=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+      'Set-Cookie': `username=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
     });
     return;
   }
@@ -134,13 +139,16 @@ module.exports = async (req, res) => {
     const session = requireSession(req, res);
     if (!session) return;
     const list = Array.from(users.keys());
-    sendJSON(res, 200, { users: list }, corsHeaders(req));
+    sendJSON(res, 200, { users: list, online: Array.from(onlineUsers) }, corsHeaders(req));
     return;
   }
 
   if (req.method === 'GET' && pathname === '/stream') {
     const session = requireSession(req, res);
     if (!session) return;
+    // streaming kept for local; serverless may not support
+    onlineUsers.add(session.username);
+    broadcast('presence', { user: session.username, online: true });
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -152,6 +160,8 @@ module.exports = async (req, res) => {
     res.write(`event: history\ndata: ${JSON.stringify(messages)}\n\n`);
     req.on('close', () => {
       subscribers.delete(res);
+      onlineUsers.delete(session.username);
+      broadcast('presence', { user: session.username, online: false });
     });
     return;
   }
@@ -173,6 +183,20 @@ module.exports = async (req, res) => {
     } catch (e) {
       sendJSON(res, 400, { error: 'Invalid request' }, corsHeaders(req));
     }
+    return;
+  }
+
+  // polling endpoints
+  if (req.method === 'GET' && pathname === '/messages') {
+    const session = requireSession(req, res);
+    if (!session) return;
+    sendJSON(res, 200, { messages }, corsHeaders(req));
+    return;
+  }
+  if (req.method === 'GET' && pathname === '/online') {
+    const session = requireSession(req, res);
+    if (!session) return;
+    sendJSON(res, 200, { online: Array.from(onlineUsers) }, corsHeaders(req));
     return;
   }
 
