@@ -11,9 +11,9 @@ const users = new Map();
 users.set('user2', hash('112233'));
 users.set('user1', hash('12345'));
 
-const sessions = new Map();
+// session map removed - use signed cookie instead
 const subscribers = new Set();
-// track which users currently have an active connection
+// track which users currently have an active connection (will not persist between invocations)
 const onlineUsers = new Set();
 // hold chat history; will be loaded from disk if available
 const messages = [];
@@ -44,12 +44,12 @@ function parseCookies(req) {
 
 function requireSession(req, res) {
   const cookies = parseCookies(req);
-  const sid = cookies.sid;
-  if (!sid || !sessions.has(sid)) {
+  const user = cookies.username;
+  if (!user || !users.has(user)) {
     sendJSON(res, 401, { error: 'Unauthorized' });
     return null;
   }
-  return sessions.get(sid);
+  return { username: user };
 }
 
 function readBody(req) {
@@ -183,17 +183,13 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && pathname === '/logout') {
     const cookies = parseCookies(req);
-    const sid = cookies.sid;
-    if (sid) {
-      const sess = sessions.get(sid);
-      if (sess && sess.username) {
-        onlineUsers.delete(sess.username);
-        broadcast('presence', { user: sess.username, online: false });
-      }
-      sessions.delete(sid);
+    const user = cookies.username;
+    if (user) {
+      onlineUsers.delete(user);
+      broadcast('presence', { user, online: false });
     }
     sendJSON(res, 200, { ok: true }, {
-      'Set-Cookie': `sid=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+      'Set-Cookie': `username=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
     });
     return;
   }
