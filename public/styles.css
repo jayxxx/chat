@@ -163,3 +163,43 @@ button:hover { filter: brightness(1.1); }
   background: #222;
   color: #eee;
 }
+
+/* mobile specific tweaks */
+.menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: #eee;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-btn {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 80%;
+    max-width: 300px;
+    height: 100%;
+    background: #161616;
+    z-index: 1000;
+    transition: left 0.3s ease;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .bubble {
+    max-width: 90%;
+  }
+}

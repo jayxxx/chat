@@ -11,12 +11,36 @@ const logoutBtn = document.getElementById('logoutBtn');
 const messagesEl = document.getElementById('messages');
 const messageForm = document.getElementById('messageForm');
 const messageInput = document.getElementById('messageInput');
+const menuBtn = document.getElementById('menuBtn');
+const sidebar = document.querySelector('.sidebar');
 
 let eventSource = null;
 let username = null;
 let messagesStore = [];
 let selectedConversation = 'all';
 let contacts = [];
+
+async function checkSession() {
+  try {
+    const res = await fetch('/me');
+    if (!res.ok) return;
+    const data = await res.json();
+    username = data.username;
+    welcome.textContent = username;
+    avatar.textContent = username.slice(0, 1).toUpperCase();
+    auth.hidden = true;
+    chat.hidden = false;
+    connectStream();
+    await loadContacts();
+    renderConversations();
+    setConversation('all', 'All Messages');
+  } catch (e) {
+    // ignore; not logged in
+  }
+}
+
+// perform the check right away
+checkSession();
 
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -88,6 +112,12 @@ messageForm.addEventListener('submit', async (e) => {
 });
 
 function connectStream() {
+  // attach mobile menu button listener
+  if (menuBtn && sidebar) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+    });
+  }
   eventSource = new EventSource('/stream');
   eventSource.addEventListener('history', (ev) => {
     const hist = JSON.parse(ev.data);
@@ -148,6 +178,11 @@ function setConversation(id, title) {
   conversationTitle.textContent = title;
   renderConversations();
   renderThread();
+
+  // close mobile sidebar when a conversation is chosen
+  if (window.innerWidth <= 700 && sidebar) {
+    sidebar.classList.remove('open');
+  }
 }
 
 function renderThread() {

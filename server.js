@@ -163,6 +163,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // return info about current session (used by client to persist login)
+  if (req.method === 'GET' && pathname === '/me') {
+    const session = requireSession(req, res);
+    if (!session) return;
+    sendJSON(res, 200, { username: session.username });
+    return;
+  }
+
   if (req.method === 'GET' && pathname === '/stream') {
     const session = requireSession(req, res);
     if (!session) return;
