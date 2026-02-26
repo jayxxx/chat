@@ -202,10 +202,10 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // streaming not reliably supported on serverless platforms; keep for local
   if (req.method === 'GET' && pathname === '/stream') {
     const session = requireSession(req, res);
     if (!session) return;
-    // mark connection open
     onlineUsers.add(session.username);
     broadcast('presence', { user: session.username, online: true });
 
@@ -222,6 +222,21 @@ const server = http.createServer(async (req, res) => {
       onlineUsers.delete(session.username);
       broadcast('presence', { user: session.username, online: false });
     });
+    return;
+  }
+
+  // additional endpoints for polling
+  if (req.method === 'GET' && pathname === '/messages') {
+    const session = requireSession(req, res);
+    if (!session) return;
+    sendJSON(res, 200, { messages });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/online') {
+    const session = requireSession(req, res);
+    if (!session) return;
+    sendJSON(res, 200, { online: Array.from(onlineUsers) });
     return;
   }
 

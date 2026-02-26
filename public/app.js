@@ -59,6 +59,7 @@ async function checkSession() {
     // render any cached messages right away before streaming
     renderThread();
     connectStream();
+    startPolling();
     await loadContacts();
     renderConversations();
     setConversation('all', 'All Messages');
@@ -112,6 +113,7 @@ logoutBtn.addEventListener('click', async () => {
     await fetch('/logout', { method: 'POST', credentials: 'include' });
   } finally {
     disconnectStream();
+    stopPolling();
     username = null;
     messagesStore = [];
     contacts = [];
@@ -159,6 +161,7 @@ function connectStream() {
       sidebar.classList.toggle('open');
     });
   }
+  // use SSE locally but poll on failure
   eventSource = new EventSource('/stream');
   eventSource.addEventListener('history', (ev) => {
     const hist = JSON.parse(ev.data);
@@ -200,7 +203,42 @@ function connectStream() {
     }
   });
   eventSource.onerror = () => {
+    // fallback to polling
+    console.warn('stream failed, switching to polling');
+    disconnectStream();
+    startPolling();
   };
+}
+
+let pollInterval = null;
+function startPolling() {
+  if (pollInterval) return;
+  pollInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/messages', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        messagesStore = data.messages;
+        persistMessages();
+        renderThread();
+      }
+      const on = await fetch('/online', { credentials: 'include' });
+      if (on.ok) {
+        const d = await on.json();
+        onlineUsers = new Set(d.online);
+        renderConversations();
+      }
+    } catch(e) {
+      console.error('poll error', e);
+    }
+  }, 2000);
+}
+
+function stopPolling() {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
 }
 
 function disconnectStream() {
