@@ -1,0 +1,13 @@
+{
+  "name": "chat-messaging",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal messaging app with login and SSE",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

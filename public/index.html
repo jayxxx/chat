@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Chat</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="auth">
+    <h1>Login</h1>
+    <form id="loginForm">
+      <label>
+        Username
+        <input type="text" name="username" required />
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" required />
+      </label>
+      <button type="submit">Login</button>
+      <div id="authError" class="error" hidden></div>
+    </form>
+  </div>
+
+  <div id="chat" hidden>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="profile">
+          <div id="avatar" class="avatar"></div>
+          <div id="welcome" class="welcome"></div>
+        </div>
+        <input id="search" class="search" type="text" placeholder="Search" />
+        <ul id="conversations" class="conversations"></ul>
+        <button id="logoutBtn" class="logout">Logout</button>
+      </aside>
+      <main class="thread">
+        <div class="thread-header">
+          <div id="conversationTitle" class="conversation-title">All Messages</div>
+        </div>
+        <ul id="messages" class="messages"></ul>
+        <form id="messageForm" class="composer">
+          <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off" />
+          <button type="submit">Send</button>
+        </form>
+      </main>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

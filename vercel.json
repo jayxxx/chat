@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/login", "destination": "/api/server" },
+    { "source": "/logout", "destination": "/api/server" },
+    { "source": "/users", "destination": "/api/server" },
+    { "source": "/stream", "destination": "/api/server" },
+    { "source": "/message", "destination": "/api/server" }
+  ]
+}
